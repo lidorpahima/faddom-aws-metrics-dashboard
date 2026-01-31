@@ -15,6 +15,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/metrics', metricsRouter)
 
 // Export app for testing without starting the server
+export default app
 export { app }
 
 if (process.env.NODE_ENV !== 'test') {
