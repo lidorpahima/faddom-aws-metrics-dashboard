@@ -1,6 +1,7 @@
 /**
  * Metrics API – calls backend for real CloudWatch CPU data.
  */
+import { API_BASE_URL } from '../config'
 
 /** CloudWatch 1h retention limit: oldest allowed start (ms ago). Use for date picker min. */
 export const RETENTION_1H_MS = 455 * 24 * 60 * 60 * 1000
@@ -75,7 +76,7 @@ export async function fetchCpuMetrics(
     params.append('timePeriod', timePeriod)
   }
   
-  const res = await fetch(`/api/metrics/cpu?${params}`)
+  const res = await fetch(`${API_BASE_URL}/metrics/cpu?${params}`)
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error(body.error ?? `Request failed: ${res.status}`)
@@ -94,7 +95,7 @@ export async function fetchCpuMetrics(
  * Fetches the termination protection status for an EC2 instance.
  */
 export async function fetchTerminationProtection(instanceId: string): Promise<boolean> {
-  const res = await fetch(`/api/metrics/termination-protection?instanceId=${encodeURIComponent(instanceId.trim())}`)
+  const res = await fetch(`${API_BASE_URL}/metrics/termination-protection?instanceId=${encodeURIComponent(instanceId.trim())}`)
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
     throw new Error(body.error ?? `Request failed: ${res.status}`)
@@ -107,7 +108,7 @@ export async function fetchTerminationProtection(instanceId: string): Promise<bo
  * Updates the termination protection status for an EC2 instance.
  */
 export async function updateTerminationProtection(instanceId: string, enabled: boolean): Promise<void> {
-  const res = await fetch('/api/metrics/termination-protection', {
+  const res = await fetch(`${API_BASE_URL}/metrics/termination-protection`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ instanceId: instanceId.trim(), enabled }),
