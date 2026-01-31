@@ -318,9 +318,7 @@ export function MetricsChart({
   fullScreen = false,
   onCloseFullScreen,
   snapToGrid = false,
-  onSnapToGridChange,
   useLogScale = false,
-  onUseLogScaleChange,
 }: MetricsChartProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)
