@@ -1,6 +1,6 @@
 # AWS EC2 Performance Monitoring Dashboard
 
-A full-stack application for real-time monitoring of AWS EC2 instances. This project features a high-performance Node.js backend and a modern, macOS-inspired glass-morphism React dashboard.
+<img width="1920" height="941" alt="41397" src="https://github.com/user-attachments/assets/4d8e9ac4-e96f-4485-9c17-20924b0bb35c" />
 
 ## 🚀 Key Features
 
