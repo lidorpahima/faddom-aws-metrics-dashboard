@@ -9,11 +9,14 @@ app.use(cors({
   origin: [
     'http://localhost:5173', 
     'http://localhost:8080', 
-    'https://lidorpahima-faddom-aws-metrics-dash-three.vercel.app',
-    'https://lidorpahima-faddom-aws-metrics-dash.vercel.app'
+    'https://lidorpahima-faddom-aws-metrics-dash-three.vercel.app', 
+    'https://faddom-aws-metrics-dashboard.vercel.app',
+    'https://lidorpahima-faddom-aws-metrics-dash.vercel.app' 
   ],
-  credentials: true
-}));app.use(express.json())
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+}));
+app.use(express.json())
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', region: config.aws.region })
