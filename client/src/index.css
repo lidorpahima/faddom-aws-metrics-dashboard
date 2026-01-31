@@ -1,0 +1,408 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Design System Colors - Premium Server Monitoring Dashboard */
+  
+  /* Backgrounds – deep, muted for sophisticated feel */
+  --bg-primary: #15181f;
+  --bg-secondary: #1e222a;
+  --bg-tertiary: #252a34;
+  --bg-card: #1e222a;
+  --bg-card-hover: #252a34;
+  
+  /* Text – clear hierarchy for data-rich display */
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-tertiary: #64748b;
+  --text-muted: #475569;
+  --text-monospace: #e2e8f0;
+  
+  /* Accents – subtle, trustworthy highlights */
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-info: #3b82f6;
+  --accent-primary: #f97316;
+  --accent-chart: #38bdf8;
+  
+  /* Borders – understated depth */
+  --border-default: rgba(148, 163, 184, 0.15);
+  --border-subtle: rgba(100, 116, 139, 0.2);
+  --border-hover: rgba(148, 163, 184, 0.25);
+  
+  /* Status */
+  --status-running: #10b981;
+  --status-stopped: #ef4444;
+  --status-warning: #f59e0b;
+  
+  /* Glassmorphism */
+  --glass-bg: rgba(30, 34, 42, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  
+  /* Data display – premium typography scale */
+  --stat-value-size: 1.75rem;
+  --stat-label-size: 0.6875rem;
+  --stat-spacing: 0.75rem;
+  
+  /* Animation – smooth, professional */
+  --transition-premium: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@layer base {
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    color: var(--text-primary);
+    background: var(--bg-primary);
+  }
+}
+
+@layer components {
+  /* Primary Button - Orange CTA with glassmorphism */
+  .btn-primary {
+    @apply px-8 py-3.5 text-base font-semibold text-white;
+    background: var(--accent-primary);
+    border-radius: 6px;
+    border: 1px solid rgba(251, 146, 60, 0.4);
+    box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
+    transition: all 0.2s ease;
+  }
+  .btn-primary:hover {
+    background: #f97316;
+    box-shadow: 0 6px 16px rgba(251, 146, 60, 0.4);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active {
+    background: #ea580c;
+    transform: translateY(0);
+  }
+  
+  /* Secondary Button - Transparent glass */
+  .btn-secondary {
+    @apply px-8 py-3.5 text-base font-semibold;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--border-default);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+  }
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+  
+  /* Glass Card - Premium frosted glass effect */
+  .glass-card {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    box-shadow: 
+      0 8px 32px 0 rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+    position: relative;
+    overflow: hidden;
+    transition: all var(--transition-premium);
+  }
+  .glass-card:hover {
+    background: rgba(37, 41, 52, 0.75);
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 12px 40px 0 rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  }
+
+  /* Stat Card - Premium KPI display with clear hierarchy */
+  .stat-card {
+    @apply glass-card p-5 md:p-6;
+    transition: transform var(--transition-premium), box-shadow var(--transition-premium);
+  }
+  .stat-card:hover {
+    transform: translateY(-1px);
+  }
+  .stat-card-value {
+    font-size: var(--stat-value-size);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .stat-card-label {
+    font-size: var(--stat-label-size);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  
+  /* Optional shimmer effect on glass cards */
+  .glass-card-shimmer::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+      45deg,
+      transparent 30%,
+      rgba(255, 255, 255, 0.03) 50%,
+      transparent 70%
+    );
+    transform: rotate(45deg);
+    animation: shimmer 6s ease-in-out infinite;
+  }
+  
+  /* Feature Card - Glass variant */
+  .feature-card {
+    @apply glass-card p-6 md:p-8;
+  }
+  
+  /* Widget Card - Glass variant */
+  .widget-card {
+    @apply glass-card;
+    transition: all 0.2s ease;
+  }
+
+  /* Chart background - transparent for glass effect */
+  .recharts-surface {
+    background: transparent !important;
+  }
+  
+  .recharts-wrapper {
+    background: transparent !important;
+  }
+
+  /* Floating Icon Container (Hero area) */
+  .floating-icon {
+    @apply flex items-center justify-center rounded-icon;
+    width: 56px;
+    height: 56px;
+    background: #2B7DE9;
+    box-shadow: 0 4px 16px rgba(43, 125, 233, 0.25);
+  }
+  .floating-icon svg {
+    fill: #FFFFFF;
+    width: 28px;
+    height: 28px;
+  }
+  
+  /* Feature Icon (outline style, no background) */
+  .feature-icon {
+    width: 48px;
+    height: 48px;
+    stroke: #2B7DE9;
+    stroke-width: 2px;
+    fill: none;
+  }
+
+  /* Navigation Links */
+  .nav-link {
+    @apply px-4 py-2 text-[15px] font-medium text-neutral-gray800 transition-colors duration-300;
+  }
+  .nav-link:hover {
+    color: #2B7DE9;
+  }
+  .nav-link.active {
+    @apply font-semibold;
+    color: #2B7DE9;
+  }
+
+  /* Smooth transitions */
+  .focus-smooth {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  /* Focus states for accessibility – premium inputs */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+    --tw-ring-color: var(--accent-info);
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+  }
+
+  /* Inner glow effect */
+  .inner-glow {
+    box-shadow: inset 0 2px 4px rgba(255,255,255,0.6);
+  }
+
+  /* Glass tab group - Dark theme */
+  .glass-tab-group {
+    background: rgba(37, 41, 52, 0.4);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    padding: 2px;
+    display: inline-flex;
+    gap: 2px;
+  }
+
+  .glass-tab {
+    @apply px-3 py-1.5 text-sm font-medium rounded;
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    box-shadow: none;
+    transition: all 0.2s ease;
+  }
+  .glass-tab:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-monospace);
+  }
+  .glass-tab-active {
+    @apply font-medium;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Premium background – Dark glassmorphism theme with internal glow */
+  .premium-bg {
+    background-color: var(--bg-primary);
+    background-image: 
+      /* Subtle top-left glow - cool blue */
+      radial-gradient(ellipse 800px 600px at 15% 20%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+      /* Prominent center-right glow - warm orange */
+      radial-gradient(ellipse 1000px 800px at 75% 50%, rgba(251, 146, 60, 0.12) 0%, transparent 60%),
+      /* Bottom accent glow - purple */
+      radial-gradient(ellipse 600px 400px at 50% 85%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+      /* Base gradient for depth */
+      linear-gradient(165deg, #1a1d26 0%, #0f1117 50%, #1a1d26 100%);
+    background-attachment: fixed;
+    background-size: 100% 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Animated internal glow layer - pulsating light source */
+  .premium-bg::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: 
+      /* Primary glow orb - center */
+      radial-gradient(ellipse 600px 600px at 50% 45%, rgba(59, 130, 246, 0.2) 0%, transparent 70%);
+    opacity: 0.6;
+    animation: glow-pulse 8s ease-in-out infinite;
+    mix-blend-mode: screen;
+  }
+
+  /* Frosted glass texture overlay */
+  .premium-bg::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    backdrop-filter: blur(0.5px);
+    -webkit-backdrop-filter: blur(0.5px);
+  }
+
+  /* Light beam sweep effect */
+  .light-beam {
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    pointer-events: none;
+    z-index: 0;
+    background: linear-gradient(
+      45deg,
+      transparent 40%,
+      rgba(59, 130, 246, 0.03) 48%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(251, 146, 60, 0.03) 52%,
+      transparent 60%
+    );
+    animation: light-sweep 25s ease-in-out infinite;
+    opacity: 0;
+  }
+}
+
+/* Fullscreen chart overlay animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Premium stat card entrance – staggered, unobtrusive */
+@keyframes statCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-stat-card {
+  animation: statCardEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Premium background glow pulsation */
+@keyframes glow-pulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1) translate(0, 0);
+  }
+  25% {
+    opacity: 0.75;
+    transform: scale(1.05) translate(-2%, 1%);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.08) translate(1%, -1%);
+  }
+  75% {
+    opacity: 0.7;
+    transform: scale(1.03) translate(-1%, 2%);
+  }
+}
+
+/* Subtle shimmer effect for glass cards */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+  }
+}
+
+/* Floating orbs animation */
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(30px, -20px) scale(1.05);
+  }
+  50% {
+    transform: translate(-20px, 30px) scale(0.95);
+  }
+  75% {
+    transform: translate(20px, 20px) scale(1.02);
+  }
+}
+
+
+
+
