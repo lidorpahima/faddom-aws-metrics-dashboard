@@ -22,6 +22,14 @@ interface PerformanceWidgetProps {
   error: string | null
   /** Informational hint (e.g. fell back to basic 5m monitoring when 1m was requested) */
   infoHint?: string | null
+  /** Termination protection state */
+  terminationProtection?: boolean
+  /** Termination protection loading state */
+  tpLoading?: boolean
+  /** Termination protection error message */
+  tpError?: string | null
+  /** Handler for termination protection toggle */
+  onTerminationProtectionChange?: (enabled: boolean) => void
 }
 
 function PerformanceWidget({
@@ -42,6 +50,10 @@ function PerformanceWidget({
   isLoading,
   error,
   infoHint,
+  terminationProtection = false,
+  tpLoading = false,
+  tpError = null,
+  onTerminationProtectionChange,
 }: PerformanceWidgetProps) {
   const [fullScreen, setFullScreen] = useState(false)
   const [snapToGrid, setSnapToGrid] = useState(false)
@@ -266,7 +278,42 @@ function PerformanceWidget({
         <p className="mt-2 text-xs font-mono" role="status" style={{ color: 'var(--text-muted)' }}>
           Max time per resolution: 1m → <strong style={{ color: 'var(--text-tertiary)' }}>15 days</strong>, 5m → <strong style={{ color: 'var(--text-tertiary)' }}>63 days</strong>, 15m → <strong style={{ color: 'var(--text-tertiary)' }}>63 days</strong>, 1h → <strong style={{ color: 'var(--text-tertiary)' }}>455 days</strong>
         </p>
-        {/* Date range picker: full-width row so Apply/Cancel are always visible and clickable */}
+        {/* Termination protection control - only show when instance ID is provided */}
+        {instanceId.trim() && onTerminationProtectionChange && (
+          <div className="mt-3 flex items-center gap-3 px-3 py-2 rounded border" style={{
+            borderColor: 'var(--border-default)',
+            background: 'rgba(255, 255, 255, 0.03)',
+          }}>
+            <label className="text-xs font-mono flex items-center gap-2 cursor-pointer" style={{ color: 'var(--text-secondary)' }}>
+              <span>Termination Protection:</span>
+              <button
+                type="button"
+                onClick={() => onTerminationProtectionChange(!terminationProtection)}
+                disabled={tpLoading}
+                className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: terminationProtection ? 'var(--accent-info)' : 'rgba(255, 255, 255, 0.2)',
+                }}
+                aria-label={`Termination protection ${terminationProtection ? 'enabled' : 'disabled'}`}
+              >
+                <span
+                  className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform"
+                  style={{
+                    transform: terminationProtection ? 'translateX(18px)' : 'translateX(2px)',
+                  }}
+                />
+              </button>
+              <span className="text-xs font-mono" style={{ color: terminationProtection ? 'var(--accent-info)' : 'var(--text-muted)' }}>
+                {tpLoading ? '...' : terminationProtection ? 'Enabled' : 'Disabled'}
+              </span>
+            </label>
+            {tpError && (
+              <span className="text-xs font-mono ml-auto" style={{ color: 'var(--status-warning)' }}>
+                {tpError}
+              </span>
+            )}
+          </div>
+        )}
       
       </form>
 
