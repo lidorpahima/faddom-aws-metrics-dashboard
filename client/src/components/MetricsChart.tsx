@@ -67,17 +67,52 @@ function formatTooltipDate(timestamp: number): { date: string; time: string; ful
   return { date, time, full }
 }
 
+/** Calculate time span in days */
+function getTimeSpanDays(data: DataPoint[]): number {
+  if (data.length < 2) return 0
+  const first = data[0].timestamp
+  const last = data[data.length - 1].timestamp
+  return (last - first) / (1000 * 60 * 60 * 24)
+}
+
+/** Smart X-axis tick formatter: adapts to time span - for long spans, hide dates and show hint instead */
+function formatXAxisTick(data: DataPoint[], pointIndex: number): string {
+  const point = data[pointIndex]
+  if (!point || data.length === 0) return ''
+  const d = new Date(point.timestamp)
+  const spanDays = getTimeSpanDays(data)
+  
+  // For spans > 3 days: hide dates on X-axis (user should hover to see exact dates/times)
+  if (spanDays > 3) {
+    return '' // Empty string - dates will be hidden, hint message will be shown below chart
+  }
+  // For spans 1-3 days: always show date + time (like tooltip)
+  if (spanDays > 1) {
+    // Always show date + time for clarity, matching tooltip format
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+  }
+  // For spans <= 1 day: show time only
+  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
 /** Short format for Brush ticks – date when span > 1 day, else time */
 function formatBrushTick(data: DataPoint[], index: number): string {
   const point = data[index]
   if (!point) return ''
   const d = new Date(point.timestamp)
-  const prev = index > 0 ? data[index - 1] : null
-  const sameDay = prev && new Date(prev.timestamp).toDateString() === d.toDateString()
-  if (sameDay || index === 0) {
-    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+  const spanDays = getTimeSpanDays(data)
+  
+  // For spans > 1 day: show date + time
+  if (spanDays > 1) {
+    const prev = index > 0 ? data[index - 1] : null
+    const sameDay = prev && new Date(prev.timestamp).toDateString() === d.toDateString()
+    if (sameDay && index > 0) {
+      return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+    }
+    return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) + ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
   }
-  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false })
+  // For spans <= 1 day: show time only
+  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 /** Selection summary: shows when user has selected a range via click-drag */
@@ -265,7 +300,7 @@ function FullscreenHoverCard({
             <span style={{ color: 'var(--text-tertiary)' }}>From</span>
             <span style={{ color: statusColor }}>{formatCpuValue(startPoint.cpu, snapToGrid)}%</span>
             <span className="text-[10px]" style={{ color: 'var(--text-muted)' }} title={formatTooltipDate(startPoint.timestamp).full}>
-              {new Date(startPoint.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
+              {formatTooltipDate(startPoint.timestamp).date} {formatTooltipDate(startPoint.timestamp).time}
             </span>
           </div>
           <div className="flex items-center justify-center" style={{ color: 'var(--text-tertiary)' }}>
@@ -277,7 +312,7 @@ function FullscreenHoverCard({
             <span style={{ color: 'var(--text-tertiary)' }}>To</span>
             <span className="font-semibold" style={{ color: statusColor }}>{formatCpuValue(endPoint.cpu, snapToGrid)}%</span>
             <span className="text-[10px]" style={{ color: 'var(--text-muted)' }} title={formatTooltipDate(endPoint.timestamp).full}>
-              {new Date(endPoint.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
+              {formatTooltipDate(endPoint.timestamp).date} {formatTooltipDate(endPoint.timestamp).time}
             </span>
           </div>
         </div>
@@ -497,6 +532,54 @@ export function MetricsChart({
             stroke="var(--text-tertiary)" 
             style={{ fontSize: fullScreen ? '12px' : '11px' }}
             tick={{ fill: 'var(--text-tertiary)' }}
+            hide={getTimeSpanDays(chartData) > 3}
+            tickFormatter={(value, tickIndex) => {
+              const dataToUse = fullScreen && displayData.length > 1 ? displayData : chartData
+              // Find the data point that matches this tick's time value
+              const pointIndex = dataToUse.findIndex(dp => dp.time === value)
+              if (pointIndex === -1) {
+                // Fallback: use tickIndex if we can't find by time value
+                return formatXAxisTick(dataToUse, tickIndex)
+              }
+              
+              // Always show exact date/time for each tick (no need to compare with previous)
+              return formatXAxisTick(dataToUse, pointIndex)
+            }}
+            angle={fullScreen ? 0 : chartData.length > 20 ? -45 : 0}
+            textAnchor={fullScreen ? 'middle' : chartData.length > 20 ? 'end' : 'middle'}
+            height={fullScreen ? 30 : chartData.length > 20 ? 60 : 30}
+            interval={(() => {
+              const spanDays = getTimeSpanDays(chartData)
+              const dataLength = chartData.length
+              
+              // For multi-day spans (> 3 days), calculate interval to show ~1 tick per day
+              if (spanDays > 3) {
+                // Estimate how many data points per day
+                const pointsPerDay = dataLength / spanDays
+                // We want to show approximately one tick per day, or every 2-3 days for very long spans
+                if (spanDays > 14) {
+                  // For spans > 2 weeks, show tick every 2-3 days
+                  return Math.max(0, Math.floor(pointsPerDay * 2))
+                } else {
+                  // For shorter multi-day spans, show approximately one tick per day
+                  return Math.max(0, Math.floor(pointsPerDay * 0.8))
+                }
+              }
+              
+              // For shorter spans, use data-length based intervals
+              // For small datasets (< 20 points), show all ticks
+              if (dataLength <= 20) return 0
+              // For medium datasets (20-50), show every 2nd tick
+              if (dataLength <= 50) return 1
+              // For large datasets (50-100), show every 3rd tick
+              if (dataLength <= 100) return 2
+              // For very large datasets (100-200), show every 5th tick
+              if (dataLength <= 200) return 4
+              // For huge datasets (> 200), show every 10th tick
+              if (dataLength <= 500) return 9
+              // For extremely large datasets (> 500), show every 20th tick
+              return Math.floor(dataLength / 20)
+            })()}
           />
           <YAxis
             stroke="var(--text-tertiary)"
@@ -584,6 +667,14 @@ export function MetricsChart({
         </AreaChart>
       </ResponsiveContainer>
       </div>
+      {/* Hint for multi-day charts: show that exact times are available on hover */}
+      {getTimeSpanDays(chartData) > 3 && chartData.length > 0 && (
+        <div className="text-center mt-1 mb-1">
+          <span className="text-[15px] font-mono" style={{ color: 'var(--text-muted)' }}>
+            Hover over chart to see exact dates and times
+          </span>
+        </div>
+      )}
       {selectedRange && chartData.length > 0 && (
         <SelectionSummary
           chartData={chartData}

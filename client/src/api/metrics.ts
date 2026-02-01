@@ -76,10 +76,37 @@ export async function fetchCpuMetrics(
     params.append('timePeriod', timePeriod)
   }
   
-  const res = await fetch(`${API_BASE_URL}/metrics/cpu?${params}`)
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE_URL}/metrics/cpu?${params}`)
+  } catch (error: any) {
+    // Handle network errors (server not running, CORS, etc.)
+    if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+      throw new Error('Cannot connect to server. Please ensure the backend server is running on port 3000.')
+    }
+    throw error
+  }
+  
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.error ?? `Request failed: ${res.status}`)
+    const statusText = res.statusText || `HTTP ${res.status}`
+    const errorMessage = body.error || `Request failed: ${statusText}`
+    
+    // Provide specific error messages based on status code
+    if (res.status === 429) {
+      throw new Error(`${errorMessage} Please wait a moment before retrying.`)
+    }
+    if (res.status === 400) {
+      throw new Error(`Invalid request: ${errorMessage}`)
+    }
+    if (res.status === 404) {
+      throw new Error(`Instance not found: ${errorMessage}`)
+    }
+    if (res.status === 502 || res.status === 503) {
+      throw new Error(`AWS service error: ${errorMessage}`)
+    }
+    
+    throw new Error(errorMessage)
   }
   const json: CpuMetricsResponse = await res.json()
   return {
@@ -95,10 +122,31 @@ export async function fetchCpuMetrics(
  * Fetches the termination protection status for an EC2 instance.
  */
 export async function fetchTerminationProtection(instanceId: string): Promise<boolean> {
-  const res = await fetch(`${API_BASE_URL}/metrics/termination-protection?instanceId=${encodeURIComponent(instanceId.trim())}`)
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE_URL}/metrics/termination-protection?instanceId=${encodeURIComponent(instanceId.trim())}`)
+  } catch (error: any) {
+    if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+      throw new Error('Cannot connect to server. Please ensure the backend server is running on port 3000.')
+    }
+    throw error
+  }
+  
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.error ?? `Request failed: ${res.status}`)
+    const errorMessage = body.error || `Request failed: ${res.status} ${res.statusText}`
+    
+    if (res.status === 400) {
+      throw new Error(`Invalid request: ${errorMessage}`)
+    }
+    if (res.status === 404) {
+      throw new Error(`Instance not found: ${errorMessage}`)
+    }
+    if (res.status === 403) {
+      throw new Error(`Permission denied: ${errorMessage}`)
+    }
+    
+    throw new Error(errorMessage)
   }
   const json = await res.json()
   return !!json.enabled
@@ -108,13 +156,34 @@ export async function fetchTerminationProtection(instanceId: string): Promise<bo
  * Updates the termination protection status for an EC2 instance.
  */
 export async function updateTerminationProtection(instanceId: string, enabled: boolean): Promise<void> {
-  const res = await fetch(`${API_BASE_URL}/metrics/termination-protection`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ instanceId: instanceId.trim(), enabled }),
-  })
+  let res: Response
+  try {
+    res = await fetch(`${API_BASE_URL}/metrics/termination-protection`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ instanceId: instanceId.trim(), enabled }),
+    })
+  } catch (error: any) {
+    if (error.message?.includes('Failed to fetch') || error.name === 'TypeError') {
+      throw new Error('Cannot connect to server. Please ensure the backend server is running on port 3000.')
+    }
+    throw error
+  }
+  
   if (!res.ok) {
     const body = await res.json().catch(() => ({}))
-    throw new Error(body.error ?? `Request failed: ${res.status}`)
+    const errorMessage = body.error || `Request failed: ${res.status} ${res.statusText}`
+    
+    if (res.status === 400) {
+      throw new Error(`Invalid request: ${errorMessage}`)
+    }
+    if (res.status === 403) {
+      throw new Error(`Permission denied: ${errorMessage}`)
+    }
+    if (res.status === 404) {
+      throw new Error(`Instance not found: ${errorMessage}`)
+    }
+    
+    throw new Error(errorMessage)
   }
 }

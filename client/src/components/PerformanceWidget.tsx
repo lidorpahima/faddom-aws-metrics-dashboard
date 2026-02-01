@@ -17,10 +17,6 @@ interface PerformanceWidgetProps {
   onCustomDateRangeApply: (start: number, end: number) => void
   onRefresh: () => void
   onSubmit: (e: React.FormEvent) => void
-  terminationProtection: boolean
-  tpLoading: boolean
-  tpError: string | null
-  onTerminationProtectionChange: (enabled: boolean) => void
   chartData: Array<{ time: string; cpu: number; timestamp: number }>
   isLoading: boolean
   error: string | null
@@ -42,10 +38,6 @@ function PerformanceWidget({
   onCustomDateRangeApply,
   onRefresh,
   onSubmit,
-  terminationProtection,
-  tpLoading,
-  tpError,
-  onTerminationProtectionChange,
   chartData,
   isLoading,
   error,
@@ -270,47 +262,7 @@ function PerformanceWidget({
             )}
           </div>
         </div>
-        
-        {/* Termination Protection Toggle */}
-        <div className="mt-4 flex items-center gap-3 p-3 rounded-lg border" style={{
-          borderColor: 'var(--border-default)',
-          background: 'rgba(255, 255, 255, 0.02)',
-        }}>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input 
-              type="checkbox" 
-              className="sr-only peer"
-              checked={terminationProtection}
-              disabled={tpLoading || !instanceId.trim()}
-              onChange={(e) => onTerminationProtectionChange(e.target.checked)}
-            />
-            <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-              Termination Protection
-              {tpLoading && <span className="ml-2 text-xs animate-pulse" style={{ color: 'var(--text-muted)' }}>(updating...)</span>}
-            </span>
-            <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-              {terminationProtection 
-                ? 'Protected: Instance cannot be terminated via API/Console' 
-                : 'Unprotected: Instance can be terminated'}
-            </span>
-          </div>
-        </div>
-
-        {/* Termination Protection Error */}
-        {tpError && (
-          <div className="mt-2 px-3 py-1.5 rounded border text-[11px] font-mono" style={{
-            borderColor: 'var(--status-warning)',
-            background: 'rgba(245, 158, 11, 0.05)',
-            color: 'var(--text-primary)',
-          }}>
-            <span className="font-bold mr-1">Permission Error:</span> {tpError}
-          </div>
-        )}
-
-        {/* Max time per resolution */}
+        {/* Max time per resolution – CloudWatch retention: show all limits so users know each interval has its own max */}
         <p className="mt-2 text-xs font-mono" role="status" style={{ color: 'var(--text-muted)' }}>
           Max time per resolution: 1m → <strong style={{ color: 'var(--text-tertiary)' }}>15 days</strong>, 5m → <strong style={{ color: 'var(--text-tertiary)' }}>63 days</strong>, 15m → <strong style={{ color: 'var(--text-tertiary)' }}>63 days</strong>, 1h → <strong style={{ color: 'var(--text-tertiary)' }}>455 days</strong>
         </p>
@@ -409,10 +361,18 @@ function PerformanceWidget({
               )}
             </div>
             <div className="flex items-center gap-2">
-              {useCustomRange && customStartTime && customEndTime && (
-                <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-                  {new Date(customStartTime).toLocaleDateString()} → {new Date(customEndTime).toLocaleDateString()}
-                </span>
+              {useCustomRange && chartData.length > 0 && (
+                <div className="flex items-center gap-1.5 text-xs font-mono mr-2" style={{ color: 'var(--text-muted)' }}>
+                  <span style={{ color: 'var(--text-tertiary)' }}>From</span>
+                  <span title={new Date(chartData[0].timestamp).toLocaleString()}>
+                    {new Date(chartData[0].timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} {new Date(chartData[0].timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  </span>
+                  <span style={{ color: 'var(--text-tertiary)' }}>→</span>
+                  <span style={{ color: 'var(--text-tertiary)' }}>To</span>
+                  <span title={new Date(chartData[chartData.length - 1].timestamp).toLocaleString()}>
+                    {new Date(chartData[chartData.length - 1].timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} {new Date(chartData[chartData.length - 1].timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
+                  </span>
+                </div>
               )}
               <button
                 type="button"

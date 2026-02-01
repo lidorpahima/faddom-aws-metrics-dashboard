@@ -123,16 +123,34 @@ router.get('/cpu', async (req: Request, res: Response) => {
 
   let instanceId: string
   if (identifier.startsWith('i-')) {
-    instanceId = identifier
-  } else {
-    const resolved = await resolveInstanceId(identifier)
-    if (!resolved) {
-      res.status(404).json({
-        error: `No EC2 instance found for IP ${identifier} in region ${config.aws.region}. Check IP and AWS_REGION.`,
+    // Validate instance ID format
+    if (identifier.length > 255) {
+      res.status(400).json({
+        error: `Instance ID too long (${identifier.length} characters). Maximum length is 255 characters.`,
       })
       return
     }
-    instanceId = resolved
+    instanceId = identifier
+  } else {
+    try {
+      const resolved = await resolveInstanceId(identifier)
+      if (!resolved) {
+        res.status(404).json({
+          error: `No EC2 instance found for IP ${identifier} in region ${config.aws.region}. Check IP and AWS_REGION.`,
+        })
+        return
+      }
+      instanceId = resolved
+    } catch (error: any) {
+      // Handle validation errors from getInstanceIdByPrivateIp
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      if (errorMessage.includes('too long') || errorMessage.includes('Invalid IP')) {
+        res.status(400).json({ error: errorMessage })
+        return
+      }
+      // Re-throw for other error handlers
+      throw error
+    }
   }
 
   try {
@@ -191,10 +209,43 @@ router.get('/cpu', async (req: Request, res: Response) => {
     if (warning) response.warning = warning
     
     res.json(response)
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to fetch metrics'
-    const isAws = message.includes('AWS') || message.includes('CloudWatch') || (err as { name?: string })?.name === 'CredentialsError'
-    res.status(isAws ? 502 : 500).json({ error: message })
+  } catch (err: any) {
+    // Handle specific AWS errors
+    const status = err?.$metadata?.httpStatusCode
+    const code = err?.Code || err?.code || err?.Error?.Code
+    const name = err?.name
+    const message = err instanceof Error ? err.message : String(err)
+    
+    // Rate limiting / throttling
+    if (status === 429 || code === 'ThrottlingException' || name === 'ThrottlingException') {
+      res.status(429).json({
+        error: 'AWS API rate limit exceeded. Please wait a moment and try again.',
+        retryAfter: '30s',
+      })
+      return
+    }
+    
+    // Invalid credentials
+    if (code === 'CredentialsError' || name === 'CredentialsError' || message?.includes('credentials')) {
+      res.status(502).json({
+        error: 'AWS credentials are invalid or expired. Please check your AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.',
+      })
+      return
+    }
+    
+    // IP/Filter validation errors (already handled above, but catch any remaining)
+    if (code === 'FilterLimitExceeded' || message?.includes('too long') || message?.includes('Invalid IP')) {
+      res.status(400).json({ error: message })
+      return
+    }
+    
+    // Generic AWS errors
+    const isAws = status || code || name || message.includes('AWS') || message.includes('CloudWatch')
+    res.status(isAws ? 502 : 500).json({
+      error: message,
+      ...(code && { code }),
+      ...(status && { statusCode: status }),
+    })
   }
 })
 
@@ -210,20 +261,46 @@ router.get('/termination-protection', async (req: Request, res: Response) => {
     return
   }
 
-  const instanceId = await resolveInstanceId(identifier)
-  if (!instanceId) {
-    res.status(404).json({
-      error: `No EC2 instance found for ${identifier} in region ${config.aws.region}.`,
-    })
-    return
-  }
-
   try {
+    const instanceId = await resolveInstanceId(identifier)
+    if (!instanceId) {
+      res.status(404).json({
+        error: `No EC2 instance found for ${identifier} in region ${config.aws.region}.`,
+      })
+      return
+    }
+
     const enabled = await getTerminationProtection(instanceId)
     res.json({ instanceId, enabled })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to read termination protection'
-    res.status(502).json({ error: message })
+  } catch (err: any) {
+    const status = err?.$metadata?.httpStatusCode
+    const code = err?.Code || err?.code || err?.Error?.Code
+    const name = err?.name
+    const message = err instanceof Error ? err.message : String(err)
+    
+    // Handle validation errors
+    if (code === 'FilterLimitExceeded' || message?.includes('too long') || message?.includes('Invalid IP')) {
+      res.status(400).json({ error: message })
+      return
+    }
+    
+    // Handle permission errors
+    if (status === 403 || code === 'UnauthorizedOperation' || code === 'AccessDeniedException' || name === 'UnauthorizedOperation' || name === 'AccessDeniedException') {
+      res.status(403).json({
+        error: 'Insufficient IAM permissions to read termination protection in this environment.',
+        requiredAction: 'ec2:DescribeInstanceAttribute',
+        instanceId: identifier,
+      })
+      return
+    }
+    
+    // Generic AWS errors
+    const isAws = status || code || name || message.includes('AWS')
+    res.status(isAws ? 502 : 500).json({
+      error: message,
+      ...(code && { code }),
+      ...(status && { statusCode: status }),
+    })
   }
 })
 
@@ -246,43 +323,56 @@ router.put('/termination-protection', async (req: Request, res: Response) => {
     return
   }
 
-  const instanceId = await resolveInstanceId(identifier)
-  if (!instanceId) {
-    res.status(404).json({
-      error: `No EC2 instance found for ${identifier} in region ${config.aws.region}.`,
-    })
-    return
-  }
-
   try {
+    const instanceId = await resolveInstanceId(identifier)
+    if (!instanceId) {
+      res.status(404).json({
+        error: `No EC2 instance found for ${identifier} in region ${config.aws.region}.`,
+      })
+      return
+    }
+
     await setTerminationProtection(instanceId, enabled)
     res.json({ instanceId, enabled })
   } catch (err: any) {
+    const message = err instanceof Error ? err.message : String(err)
     const status = err?.$metadata?.httpStatusCode
+    const code = err?.Code || err?.code || err?.Error?.Code
     const name = err?.name
-    const code = err?.Code || err?.code
-
+    
+    // Handle validation errors
+    if (code === 'FilterLimitExceeded' || message?.includes('too long') || message?.includes('Invalid IP')) {
+      res.status(400).json({ error: message })
+      return
+    }
+    
+    // Handle permission errors
     const isForbidden =
       status === 403 ||
       name === 'UnauthorizedOperation' ||
       name === 'AccessDeniedException' ||
       code === 'UnauthorizedOperation' ||
       code === 'AccessDeniedException' ||
-      String(err?.message || '').toLowerCase().includes('not authorized') ||
-      String(err?.message || '').toLowerCase().includes('access denied')
+      message?.toLowerCase().includes('not authorized') ||
+      message?.toLowerCase().includes('access denied')
 
     if (isForbidden) {
       res.status(403).json({
-        error: 'This action is blocked in the test environment. The provided IAM user does not allow ec2:ModifyInstanceAttribute, so termination protection cannot be toggled.',
+        error: 'Insufficient IAM permissions to modify termination protection in this environment.',
         requiredAction: 'ec2:ModifyInstanceAttribute',
-        instanceId,
+        instanceId: identifier,
         enabledRequested: enabled,
       })
       return
     }
-
-    const message = err instanceof Error ? err.message : 'Failed to update termination protection'
-    res.status(502).json({ error: message })
+    
+    // Generic AWS errors
+    const isAws = status || code || name || message.includes('AWS')
+    res.status(isAws ? 502 : 500).json({
+      error: message,
+      ...(code && { code }),
+      ...(status && { statusCode: status }),
+    })
   }
 })
 

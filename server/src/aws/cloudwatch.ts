@@ -72,6 +72,7 @@ function calculateQueryChunks(rangeMs: number, periodSeconds: number): number {
   }
   
   // Split into multiple queries, each with max MAX_DATAPOINTS
+  // Use Math.ceil to ensure we cover the entire range
   return Math.ceil(estimatedDatapoints / MAX_DATAPOINTS)
 }
 
@@ -192,16 +193,25 @@ export async function getCpuMetrics(
   const allTimestamps: number[] = []
   const allValues: number[] = []
   
+  // Collect all data points from all chunks
   for (const result of metricResults) {
     const timestamps = result.Timestamps ?? []
     const values = result.Values ?? []
     
-    for (let i = 0; i < timestamps.length; i++) {
-      const timestamp = timestamps[i]?.getTime() ?? 0
-      const value = values[i] ?? 0
-      if (timestamp > 0) {
-        allTimestamps.push(timestamp)
-        allValues.push(value)
+    // Ensure we have matching arrays
+    const length = Math.min(timestamps.length, values.length)
+    for (let i = 0; i < length; i++) {
+      const timestamp = timestamps[i]
+      const value = values[i]
+      
+      // Only include valid timestamps within the requested range
+      if (timestamp && timestamp.getTime && value !== undefined && value !== null) {
+        const ts = timestamp.getTime()
+        // Include all points within the requested range (with small buffer for rounding)
+        if (ts >= start.getTime() - 1000 && ts <= end.getTime() + 1000) {
+          allTimestamps.push(ts)
+          allValues.push(value)
+        }
       }
     }
   }
@@ -212,12 +222,14 @@ export async function getCpuMetrics(
     dataPoints.push({ timestamp: allTimestamps[i], cpu: allValues[i] })
   }
   
-  // Remove duplicates and sort
+  // Remove duplicates and sort by timestamp
   const seen = new Set<number>()
   const uniqueDataPoints = dataPoints
     .filter(dp => {
-      if (seen.has(dp.timestamp)) return false
-      seen.add(dp.timestamp)
+      // Use timestamp as unique key (round to nearest second to handle minor differences)
+      const roundedTs = Math.round(dp.timestamp / 1000) * 1000
+      if (seen.has(roundedTs)) return false
+      seen.add(roundedTs)
       return true
     })
     .sort((a, b) => a.timestamp - b.timestamp)
@@ -278,14 +290,45 @@ async function fetchMetricsWithPeriod(
     return [result]
   } else {
     // Multiple queries - split time range into chunks
+    // Calculate chunk duration: MAX_DATAPOINTS points * period in seconds * 1000 for ms
     const chunkDurationMs = MAX_DATAPOINTS * period * 1000
     const chunks: Array<{ start: Date; end: Date }> = []
     
-    let currentStart = start
-    while (currentStart < end) {
-      const currentEnd = new Date(Math.min(currentStart.getTime() + chunkDurationMs, end.getTime()))
-      chunks.push({ start: currentStart, end: currentEnd })
-      currentStart = currentEnd
+    const startTime = start.getTime()
+    const endTime = end.getTime()
+    let currentStart = startTime
+    
+    // Split the range into chunks, ensuring complete coverage
+    while (currentStart < endTime) {
+      const chunkEndTime = Math.min(currentStart + chunkDurationMs, endTime)
+      
+      // Only create chunk if it has valid duration
+      if (chunkEndTime > currentStart) {
+        chunks.push({ 
+          start: new Date(currentStart), 
+          end: new Date(chunkEndTime) 
+        })
+      }
+      
+      // Move to next chunk start (chunks can overlap slightly to ensure no gaps)
+      // CloudWatch handles overlapping queries correctly
+      currentStart = chunkEndTime
+      
+      // Safety check to prevent infinite loops
+      if (chunkEndTime >= endTime) {
+        break
+      }
+    }
+    
+    // Ensure we always have at least one chunk covering the full range
+    if (chunks.length === 0) {
+      chunks.push({ start, end })
+    } else {
+      // Ensure the last chunk covers exactly to the end time
+      const lastChunk = chunks[chunks.length - 1]
+      if (lastChunk.end.getTime() < endTime) {
+        chunks[chunks.length - 1] = { start: lastChunk.start, end }
+      }
     }
     
     // Fetch chunks concurrently with controlled parallelism

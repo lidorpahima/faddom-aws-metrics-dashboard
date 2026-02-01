@@ -23,13 +23,37 @@ export interface InstanceDetails {
 /**
  * Resolves a private IP address to an EC2 Instance ID in the configured region.
  * Returns undefined if no instance is found (wrong IP, wrong region, or no permission).
+ * @throws Error if IP is invalid or too long (AWS limit: 255 characters)
  */
 export async function getInstanceIdByPrivateIp(ip: string): Promise<string | undefined> {
-  const command = new DescribeInstancesCommand({
-    Filters: [{ Name: 'private-ip-address', Values: [ip.trim()] }],
-  })
-  const response = await client.send(command)
-  return response.Reservations?.[0]?.Instances?.[0]?.InstanceId
+  const trimmedIp = ip.trim()
+  
+  // Validate IP length (AWS filter value limit is 255 characters)
+  if (trimmedIp.length > 255) {
+    throw new Error(`IP address too long (${trimmedIp.length} characters). Maximum length is 255 characters.`)
+  }
+  
+  // Basic IP format validation (IPv4 or IPv6)
+  const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/
+  const ipv6Pattern = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/
+  if (!trimmedIp.startsWith('i-') && !ipv4Pattern.test(trimmedIp) && !ipv6Pattern.test(trimmedIp)) {
+    throw new Error(`Invalid IP address format: ${trimmedIp}`)
+  }
+  
+  try {
+    const command = new DescribeInstancesCommand({
+      Filters: [{ Name: 'private-ip-address', Values: [trimmedIp] }],
+    })
+    const response = await client.send(command)
+    return response.Reservations?.[0]?.Instances?.[0]?.InstanceId
+  } catch (error: any) {
+    // Handle AWS-specific errors
+    if (error.Code === 'FilterLimitExceeded' || error.Error?.Code === 'FilterLimitExceeded') {
+      throw new Error(`IP address value too long for AWS filter (maximum 255 characters). Received: ${trimmedIp.length} characters.`)
+    }
+    // Re-throw other errors
+    throw error
+  }
 }
 
 /**
